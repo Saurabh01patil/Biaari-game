@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Biaari Point - Khelo aur Jeeto</title>
+<title>Biaari Point - Memory Match</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{--dark:#39302a;--or:#d06020;--cream:#fff7ee;--mute:#7a6b5f}
@@ -27,7 +27,6 @@ p{margin:8px 0}
 .card span{opacity:0;transition:opacity .15s}
 .card.up{background:#fff;border:2px solid var(--or)}.card.up span{opacity:1}
 .card.ok{background:#e6f4e0;border:2px solid #6aa84f}.card.ok span{opacity:1}
-canvas{width:100%;display:block;background:#fff;border:2px solid var(--dark);border-radius:16px;touch-action:none}
 .cp{background:#fff;border:3px dashed var(--or);border-radius:20px;padding:20px 14px;margin:14px 0}
 .cp .big{font-size:52px;font-weight:700;color:var(--or);line-height:1}
 .cp .code{font-size:26px;font-weight:700;letter-spacing:3px;margin:10px 0}
@@ -41,22 +40,15 @@ a{color:var(--or);font-weight:600}
 <section id="home" class="scr on">
   <h1>BIAARI <span>POINT</span></h1>
   <p class="tag">We cook for your craving</p>
-  <p><b>Khelo aur discount jeeto!</b></p>
-  <p class="note">Jitna accha khelo, utna bada discount (₹30 se ₹90 tak, ₹500 ya zyada ke bill par). Ek customer, ek baar.</p>
-  <button class="btn" data-go="mem">Memory Match<small>Jodi milao, 60 second</small></button>
-  <button class="btn alt" data-go="catch">Biryani Catch<small>Khaana pakdo, 30 second</small></button>
+  <p><b>Memory Match</b></p>
+  <p class="note">6 jodi 30 second mein milao. Jitna jaldi, utna bada discount (₹30 se ₹90 tak, ₹500 ya zyada ke bill par). Ek customer, ek baar.</p>
+  <button class="btn" data-go="mem">Memory Match<small>Jodi milao, sirf 30 second</small></button>
 </section>
 
 <section id="mem" class="scr">
-  <div class="bar"><span>Time <b id="mt">0</b>s</span><span>Jodi <b id="mp">0</b>/6</span></div>
+  <div class="bar"><span>Time <b id="mt">30</b>s</span><span>Jodi <b id="mp">0</b>/6</span></div>
   <div class="grid" id="mg"></div>
-  <p class="note">60 second mein saari jodi milao. Jitna jaldi, utna zyada discount.</p>
-</section>
-
-<section id="catch" class="scr">
-  <div class="bar"><span>Score <b id="cs">0</b></span><span>Time <b id="ct">30</b>s</span></div>
-  <canvas id="cv" width="360" height="500"></canvas>
-  <p class="note">Handi ko ungli se left-right karo. Mirchi se bacho!</p>
+  <p class="note">30 second mein saari jodi milao. Jitna jaldi, utna zyada discount.</p>
 </section>
 
 <section id="win" class="scr">
@@ -78,6 +70,9 @@ a{color:var(--or);font-weight:600}
 <script>
 // ---- Yahan se discount badal sakte hain ----
 var MIN_BILL = 500; // minimum bill (₹)
+var MEM_LIMIT = 30; // game ka time (second)
+var MEM_BEST = 18;  // itne second ya kam mein khatam = sabse bada discount
+var MEM_MID = 25;   // itne second ya kam mein khatam = beech ka discount
 var REWARDS = {
   best: { off: "₹90 OFF", msg: "Kamaal! Aap champion ho!" },
   mid:  { off: "₹60 OFF", msg: "Bahut badhiya khele!" },
@@ -118,7 +113,7 @@ function finish(tier, fromSaved) {
 }
 
 document.querySelectorAll("[data-go]").forEach(function (b) {
-  b.onclick = function () { b.dataset.go === "mem" ? startMem() : startCatch(); };
+  b.onclick = function () { startMem(); };
 });
 
 // ---------- Memory Match ----------
@@ -129,7 +124,7 @@ function startMem() {
     var j = Math.floor(Math.random() * (i + 1)), t = deck[i]; deck[i] = deck[j]; deck[j] = t;
   }
   var g = $("mg"), first = null, lock = false, pairs = 0, t0 = Date.now(), done = false;
-  g.innerHTML = ""; $("mp").textContent = 0; $("mt").textContent = 0;
+  g.innerHTML = ""; $("mp").textContent = 0; $("mt").textContent = MEM_LIMIT;
   deck.forEach(function (ic) {
     var b = document.createElement("button");
     b.className = "card"; b.innerHTML = "<span>" + ic + "</span>"; b.dataset.i = ic;
@@ -148,65 +143,15 @@ function startMem() {
     g.appendChild(b);
   });
   timers.push(setInterval(function () {
-    var s = Math.floor((Date.now() - t0) / 1000); $("mt").textContent = s;
-    if (s >= 60) end(false);
+    var s = Math.floor((Date.now() - t0) / 1000); $("mt").textContent = Math.max(0, MEM_LIMIT - s);
+    if (s >= MEM_LIMIT) end(false);
   }, 200));
   function end(won) {
     if (done) return; done = true;
     var s = (Date.now() - t0) / 1000;
-    var tier = !won ? "low" : s <= 30 ? "best" : s <= 45 ? "mid" : "low";
+    var tier = !won ? "low" : s <= MEM_BEST ? "best" : s <= MEM_MID ? "mid" : "low";
     setTimeout(function () { finish(tier); }, 500);
   }
-}
-
-// ---------- Biryani Catch ----------
-function startCatch() {
-  stopAll(); show("catch");
-  var cv = $("cv"), cx = cv.getContext("2d"), W = 360, H = 500;
-  var bowl = W / 2, items = [], score = 0, left = 30, last = performance.now(), spawn = 0, over = false;
-  var GOOD = ["🍗", "🌯", "🍢"], t0 = Date.now();
-  $("cs").textContent = 0; $("ct").textContent = 30;
-  function move(e) {
-    var r = cv.getBoundingClientRect();
-    bowl = Math.max(40, Math.min(W - 40, (e.clientX - r.left) * W / r.width));
-  }
-  cv.onpointermove = move; cv.onpointerdown = move;
-  document.onkeydown = function (e) {
-    if (e.key === "ArrowLeft") bowl = Math.max(40, bowl - 24);
-    if (e.key === "ArrowRight") bowl = Math.min(W - 40, bowl + 24);
-  };
-  function add() {
-    var r = Math.random(), it = { x: 30 + Math.random() * (W - 60), y: -30, v: 170 + Math.random() * 110 };
-    if (r < 0.2) { it.e = "🌶️"; it.p = -2; }
-    else if (r < 0.3) { it.e = "🍛"; it.p = 3; it.v += 40; }
-    else { it.e = GOOD[Math.floor(Math.random() * 3)]; it.p = 1; }
-    items.push(it);
-  }
-  function frame(now) {
-    var dt = Math.min(0.05, (now - last) / 1000); last = now;
-    left = Math.max(0, 30 - (Date.now() - t0) / 1000);
-    $("ct").textContent = Math.ceil(left);
-    spawn -= dt; if (spawn <= 0) { add(); spawn = 0.5 + Math.random() * 0.25; }
-    cx.clearRect(0, 0, W, H);
-    cx.textAlign = "center"; cx.textBaseline = "middle";
-    cx.font = "34px serif";
-    for (var i = items.length - 1; i >= 0; i--) {
-      var it = items[i]; it.y += it.v * dt;
-      if (it.y > H - 80 && it.y < H - 30 && Math.abs(it.x - bowl) < 52) {
-        score = Math.max(0, score + it.p); $("cs").textContent = score; items.splice(i, 1); continue;
-      }
-      if (it.y > H + 30) { items.splice(i, 1); continue; }
-      cx.fillText(it.e, it.x, it.y);
-    }
-    cx.font = "64px serif"; cx.fillText("🍲", bowl, H - 42);
-    if (left <= 0 && !over) {
-      over = true;
-      finish(score >= 18 ? "best" : score >= 9 ? "mid" : "low");
-      return;
-    }
-    raf = requestAnimationFrame(frame);
-  }
-  raf = requestAnimationFrame(frame);
 }
 
 // ---------- Ek din mein ek coupon ----------
